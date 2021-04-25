@@ -12,23 +12,23 @@ class Data():
             password=config.get('passwd'),
         )
 
-        self.db = conn[client]
+        self.database = conn[client]
 
     def add_config(self, envs):
-        d = []
-        col = self.db['config']
+        data = []
+        col = self.database.get('config')
 
         if any('delay' or 'reset' or 'timeout' in s for s in envs):
-            d = dict(s.split('=') for s in envs)
+            data = dict(s.split('=') for s in envs)
 
             col.update_many(
                 {},
-                {"$set": d},
+                {"$set": data},
                 upsert=True,
             )
 
     def list_config(self):
-        col = self.db['config']
+        col = self.database.get('config')
 
         configs = list(
             col.find(
@@ -39,25 +39,26 @@ class Data():
 
         return configs
 
-    def add_intruder(self, d={}):
-        col = self.db['intruder']
+    def add_intruder(self, data):
+        col = self.database.get('intruder')
 
-        col.update_one(
-            d,
-            {'$setOnInsert': d},
-            upsert=True,
-        )
+        if data:
+            col.update_one(
+                data,
+                {'$setOnInsert': data},
+                upsert=True,
+            )
 
     def list_users(self, **kwargs):
         users = []
         col = [
-            self.db['chat'],
+            self.database.get('chat')
         ]
 
         if kwargs.get('all', False):
-            col.append(self.db['intruder'])
+            col.append(self.database.get('intruder'))
 
-        for i in range(len(col)):
+        for i in enumerate(col):
             users.extend(
                 list(
                     col[i].distinct(
@@ -71,37 +72,38 @@ class Data():
 
         return users
 
-    def add_chat(self, d={}):
-        col = self.db['chat']
+    def add_chat(self, data):
+        col = self.database.get('chat')
 
-        col.update_one(
-            d,
-            {'$setOnInsert': d},
-            upsert=True,
-        )
+        if data:
+            col.update_one(
+                data,
+                {'$setOnInsert': data},
+                upsert=True,
+            )
 
-    def del_chat(self, d):
-        col = self.db['chat']
+    def del_chat(self, data):
+        col = self.database.get('chat')
 
-        if d:
+        if data:
             col.delete_many({
-                'id': d.get('id')
+                'id': data.get('id')
             })
             return True
 
         return False
 
-    def find_chat(self, id):
-        col = self.db['chat']
+    def find_chat(self, chat_id):
+        col = self.database.get('chat')
 
         chat = col.count_documents({
-            'id': id
+            'id': chat_id
         })
 
         return chat
 
     def list_chats(self):
-        col = self.db['chat']
+        col = self.database.get('chat')
 
         chat_ids = list(
             col.distinct(
@@ -111,9 +113,9 @@ class Data():
 
         return chat_ids
 
-    def add_keywords(self, keywords=[], **kwargs):
-        d = []
-        col = self.db['keyword']
+    def add_keywords(self, keywords, **kwargs):
+        data = []
+        col = self.database.get('keyword')
 
         if kwargs.get('initial'):
             initial = os.environ.get(
@@ -124,18 +126,18 @@ class Data():
             )
 
         if keywords:
-            for v in keywords:
-                d.append({
-                    'keyword': v,
+            for val in keywords:
+                data.append({
+                    'keyword': val,
                 })
 
             col.insert_many(
-                d,
+                data,
                 ordered=False,
             )
 
     def del_keywords(self, keywords):
-        col = self.db['keyword']
+        col = self.database.get('keyword')
 
         if keywords:
             col.delete_many({
@@ -149,7 +151,7 @@ class Data():
         return False
 
     def list_keywords(self):
-        col = self.db['keyword']
+        col = self.database.get('keyword')
 
         keywords = list(
             col.distinct(

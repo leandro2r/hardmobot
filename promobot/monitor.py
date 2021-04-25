@@ -2,10 +2,10 @@ import re
 import threading
 import time
 import urllib.request
-from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 from http.client import IncompleteRead
 from json import dumps
+from bs4 import BeautifulSoup
 
 
 class Monitor():
@@ -31,20 +31,20 @@ class Monitor():
         })
 
     def manage_config(self, configs):
-        for d in configs:
-            if d.get('delay'):
+        for dic in configs:
+            if dic.get('delay'):
                 self.config['monitor'].update({
-                    'delay': int(d.get('delay'))
+                    'delay': int(dic.get('delay'))
                 })
 
-            if d.get('reset'):
+            if dic.get('reset'):
                 self.config['monitor'].update({
-                    'reset': int(d.get('reset'))
+                    'reset': int(dic.get('reset'))
                 })
 
-            if d.get('timeout'):
+            if dic.get('timeout'):
                 self.config['monitor'].update({
-                    'timeout': int(d.get('timeout'))
+                    'timeout': int(dic.get('timeout'))
                 })
 
     def manage_chats(self, chats):
@@ -71,13 +71,13 @@ class Monitor():
             set(self.data.keys()) - set(keys)
         )
 
-        for kw in add:
+        for keyword in add:
             self.data.update({
-                kw: []
+                keyword: []
             })
 
-        for kw in remove:
-            self.data.pop(kw)
+        for keyword in remove:
+            self.data.pop(keyword)
 
         if add:
             action = 'Adding'
@@ -117,11 +117,11 @@ class Monitor():
                     text,
                     timeout=self.config['monitor']['timeout'],
                 )
-            except (urllib.error.HTTPError, IncompleteRead, OSError) as e:
+            except (urllib.error.HTTPError, IncompleteRead, OSError) as error:
                 self.alert(
                     'ERROR',
                     'Error on publishing data on telegram: {}'.format(
-                        e
+                        error
                     )
                 )
 
@@ -138,42 +138,42 @@ class Monitor():
         if level == 'ERROR':
             time.sleep(self.config['monitor']['timeout'])
 
-    def lookup(self, kw, d, add):
+    def lookup(self, keyword, data, add):
         src = [
-            d.get('url'),
-            d.get('desc'),
+            data.get('url'),
+            data.get('desc'),
         ]
 
         for text in src:
             if re.match(
-                    r'.*{}.*'.format(kw),
+                    r'.*{}.*'.format(keyword),
                     str(text),
                     re.IGNORECASE,
             ):
-                for v in self.data.get(kw):
-                    if v.get('url') in d.get('url'):
+                for val in self.data.get(keyword):
+                    if val.get('url') in data.get('url'):
                         add = False
                         break
 
                 if add:
-                    d.update({
+                    data.update({
                         'url': re.sub(
                             r'(\?)(?!.*\1).*$',
                             '',
-                            d.get('url')
+                            data.get('url')
                         ),
                         'datetime': datetime.now().strftime(
                             '%d-%m-%Y %H:%M'
                         )
                     })
 
-                    self.data[kw].append(
-                        d
+                    self.data[keyword].append(
+                        data
                     )
 
                     self.report(
-                        kw,
-                        d.get('url'),
+                        keyword,
+                        data.get('url'),
                     )
 
                 break
@@ -199,7 +199,13 @@ class Monitor():
                         'title',
                         desc
                     )
-            except Exception:
+            except Exception as error:
+                self.alert(
+                    'ERROR',
+                    'Error on getting data on html content: {}'.format(
+                        error
+                    )
+                )
                 desc = ''
 
         if not isinstance(title, str):
@@ -268,12 +274,12 @@ class Monitor():
                                 str(soup)[:10]
                             )
                         )
-            except (urllib.error.HTTPError, IncompleteRead, OSError) as e:
+            except (urllib.error.HTTPError, IncompleteRead, OSError) as error:
                 self.alert(
                     'ERROR',
                     'Error on getting data from {}: {}'.format(
                         src.get('url'),
-                        e,
+                        error,
                     )
                 )
 
@@ -282,7 +288,7 @@ class Monitor():
     def monitor(self, src):
         promo = self.get_promo(src)
 
-        for kw in self.data.keys():
+        for keyword in self.data:
             add = True
 
             for each in promo:
@@ -297,15 +303,15 @@ class Monitor():
                     )
 
                 if t_title:
-                    d = self.mount(
+                    data = self.mount(
                         src,
                         each,
                         t_title
                     )
 
                     self.lookup(
-                        kw,
-                        d,
+                        keyword,
+                        data,
                         add,
                     )
 
@@ -324,14 +330,14 @@ class Monitor():
         )
 
     def reset_old(self, hours):
-        for k, v in self.data.items():
-            for i in range(len(v)):
-                list_v = self.data[k]
+        for key, val in self.data.items():
+            for i in enumerate(val):
+                list_v = self.data.get(key)
                 old = (
                     datetime.now() - timedelta(hours=hours)
                 ).strftime('%d-%m-%Y %H:%M')
 
-                if i < len(v):
+                if i < len(val):
                     try:
                         if list_v[i]['datetime'] <= old:
                             self.alert(
@@ -341,7 +347,7 @@ class Monitor():
                                     'value from {}'
                                 ).format(
                                     i + 1,
-                                    k,
+                                    key,
                                     list_v[i]['datetime'],
                                 )
                             )
@@ -382,18 +388,18 @@ class Monitor():
     def main(self, data, urls):
         proc = []
 
-        for i in range(len(urls)):
-            m = threading.Thread(
+        for i in enumerate(urls):
+            module = threading.Thread(
                 target=self.runner,
                 args=(
                     data,
                     urls[i],
                 )
             )
-            proc.append(m)
+            proc.append(module)
 
-        for p in proc:
-            p.start()
+        for i in proc:
+            i.start()
 
-        for p in proc:
-            p.join()
+        for i in proc:
+            i.join()

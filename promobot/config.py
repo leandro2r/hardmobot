@@ -209,7 +209,7 @@ class Config():
         }
 
     def set_proxy(self):
-        ip = ''
+        ip_addr = ''
         ips = []
         proxy_file = '/etc/environment'
 
@@ -227,24 +227,27 @@ class Config():
             return
 
         if ips:
-            ip = random.choice(ips)
+            ip_addr = random.choice(ips)
 
         elif os.path.exists(proxy_file):
-            with open(proxy_file, 'r') as f:
-                get_proxy = re.search(r'http://\S+', f.read())
-                f.close()
+            with open(proxy_file, 'r') as fname:
+                get_proxy = re.search(
+                    r'http://\S+',
+                    fname.read()
+                )
+                fname.close()
 
-                ip = get_proxy.group()
+                ip_addr = get_proxy.group()
 
         print(
             '{} - {} - Setting proxy: {}'.format(
                 datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
                 'INFO',
-                ip,
+                ip_addr,
             )
         )
 
-        ip_auth = ip.replace(
+        ip_auth = ip_addr.replace(
             'http://',
             'http://{}'.format(
                 base64.b64decode(

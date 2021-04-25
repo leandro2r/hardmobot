@@ -1,8 +1,8 @@
 import logging
 import re
-import telebot
 import time
 from datetime import datetime
+import telebot
 from kubernetes import client, config as conf
 
 if __package__ is None or __package__ == '':
@@ -54,7 +54,7 @@ def handle_intro(message, **kwargs):
                 message.chat.username,
             )
 
-        d = {
+        dic = {
             'id': message.chat.id,
             'user': '{} {} ({})'.format(
                 message.chat.first_name,
@@ -68,10 +68,10 @@ def handle_intro(message, **kwargs):
             if config['telegram'].get('chat_passwd') == args[0]:
                 if 'start' in cmd:
                     msg = 'Now you gonna receive all reports!'
-                    data.add_chat(d)
+                    data.add_chat(dic)
                 elif 'stop' in cmd:
                     msg = 'You will no longer receive the reports!'
-                    data.del_chat(d)
+                    data.del_chat(dic)
                 else:
                     forall = 'I\'m under maintenance...'
                     msg = 'Message has been sent for all chats!'
@@ -79,20 +79,20 @@ def handle_intro(message, **kwargs):
                     if len(args) > 1:
                         forall = ' '.join(args[1:])
 
-                    for id in data.list_chats():
+                    for chat_id in data.list_chats():
                         bot.send_message(
-                            id,
+                            chat_id,
                             text='Hey all, {}'.format(
                                 forall
                             )
                         )
             else:
-                d.update({
+                dic.update({
                     'date': datetime.utcfromtimestamp(
                         message.date
                     ).strftime('%Y-%m-%dT%H:%M:%S.000Z'),
                 })
-                data.add_intruder(d)
+                data.add_intruder(dic)
 
     return msg
 
@@ -115,10 +115,10 @@ def handle_mgmt(message, **kwargs):
                 if len(args) > 0:
                     data.add_config(args)
 
-                for d in data.list_config():
-                    for k, v in d.items():
+                for dic in data.list_config():
+                    for key, val in dic.items():
                         res += '{}={}\n'.format(
-                            k, v
+                            key, val
                         )
 
                 if 'delay' not in res:
@@ -140,9 +140,9 @@ def handle_mgmt(message, **kwargs):
                     res,
                 )
             elif 'url' in cmd:
-                for d in config.get('urls'):
+                for dic in config.get('urls'):
                     res += '{}\n'.format(
-                        d.get('url')
+                        dic.get('url')
                     )
 
                 msg = 'URLs:\n```\n{}```'.format(
@@ -177,10 +177,10 @@ def manage_kube(info):
         conf.load_kube_config()
 
     if info == 'reload':
-        v1 = client.AppsV1Api()
+        kube = client.AppsV1Api()
 
         for i in range(2):
-            v1.patch_namespaced_deployment_scale(
+            kube.patch_namespaced_deployment_scale(
                 name=name,
                 namespace=name,
                 body={"spec": {"replicas": i}},
@@ -195,9 +195,9 @@ def manage_kube(info):
         )
 
     else:
-        v1 = client.CoreV1Api()
+        kube = client.CoreV1Api()
 
-        pod = v1.list_namespaced_pod(
+        pod = kube.list_namespaced_pod(
             watch=False,
             namespace=name,
         )
@@ -215,7 +215,7 @@ def manage_kube(info):
 
                 runtime = datetime.utcnow() - started_at
 
-                log = v1.read_namespaced_pod_log(
+                log = kube.read_namespaced_pod_log(
                     name=i.metadata.name,
                     namespace=i.metadata.namespace,
                     container=status.name,
@@ -239,7 +239,7 @@ def bot_reply(message):
     if cmd:
         cmd = re.sub('[^a-z]+', '', cmd.lower())
 
-    d = {
+    dic = {
         'mgmt': [
             'add', 'del', 'list', 'who', 'kube', 'config', 'url'
         ],
@@ -251,8 +251,8 @@ def bot_reply(message):
         ],
     }
 
-    for opt in d.keys():
-        if cmd in d.get(opt):
+    for opt in dic:
+        if cmd in dic.get(opt):
             if opt == 'mgmt':
                 res = handle_mgmt(
                     message,
@@ -261,7 +261,7 @@ def bot_reply(message):
             elif opt == 'help':
                 res = handle_help(
                     message,
-                    support=d.get('mgmt'),
+                    support=dic.get('mgmt'),
                 )
             elif opt == 'intro':
                 res = handle_intro(
@@ -278,12 +278,13 @@ def bot_reply(message):
                     res,
                     parse_mode='Markdown',
                 )
-            except Exception:
-                pass
+            except Exception as error:
+                print(error)
 
 
 def main():
     try:
         bot.polling(none_stop=True)
-    except Exception:
+    except Exception as error:
+        print(error)
         time.sleep(20)
